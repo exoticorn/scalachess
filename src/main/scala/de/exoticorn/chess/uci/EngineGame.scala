@@ -14,11 +14,9 @@ class Clock(var time: Time) {
   def stop() {
     val timeSpent = (System.currentTimeMillis() - startTime.get) / 1000.0
     if (turn == 'white) {
-      val timeLeft = (time.wtime - timeSpent + time.winc).max(0)
-      time = Time(timeLeft, time.winc, time.btime, time.binc)
+      time = Time(time.wtime - timeSpent, time.winc, time.btime + time.binc, time.binc)
     } else {
-      val timeLeft = (time.btime - timeSpent + time.binc).max(0)
-      time = Time(time.wtime, time.winc, timeLeft, time.binc)
+      time = Time(time.wtime + time.winc, time.winc, time.btime - timeSpent, time.binc)
     }
     startTime = None
   }
@@ -48,17 +46,21 @@ class EngineGame(channel: actors.OutputChannel[Any], engineCmdA: String, engineC
 
     startThink()
 
-    while (!position.isFinished) {
+    while (!position.isFinished && !clock.time.outOfTime) {
       receive {
         case BestMove(id, move) =>
-          clock.stop()
+          val flagged = clock.stop()
           printf("%3d.%s%-6s %6s (%2d)   [wtime: %.2f, btime: %.2f]\n",
             position.move, (if (position.turn == 'white) "  " else ".."), move.toString,
             latestInfo.score.toString, latestInfo.depth,
             clock.time.wtime, clock.time.btime)
-          position = move.result
-          channel ! NewPositionMsg(position)
-          startThink()
+	  if (clock.time.outOfTime) {
+	    printf("Out of time\n")
+	  } else {
+            position = move.result
+            channel ! NewPositionMsg(position)
+            startThink()
+	  }
         case info: Info => latestInfo = info
       }
     }

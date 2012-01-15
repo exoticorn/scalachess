@@ -1,7 +1,9 @@
 package de.exoticorn.chess.uci
 import de.exoticorn.chess.base._
 
-case class Time(wtime: Double, winc: Double, btime: Double, binc: Double)
+case class Time(wtime: Double, winc: Double, btime: Double, binc: Double) {
+  def outOfTime = wtime < 0 || btime < 0
+}
 
 class Score
 case class ScorePawns(p: Double) extends Score {
@@ -22,6 +24,8 @@ case class BestMove(id: String, m: Move) extends EngineOutput
 case class Info(id: String, depth: Int, score: Score) extends EngineOutput
 
 class EngineCore(command: String, val id: String = "UCIengine") extends actors.DaemonActor {
+  var readySyncVar = new concurrent.SyncVar[Unit]
+
   val builder = sys.process.Process(command)
   var os: java.io.OutputStream = _
   val io = new sys.process.ProcessIO(
@@ -38,7 +42,7 @@ class EngineCore(command: String, val id: String = "UCIengine") extends actors.D
           val byte = out.read()
           if (byte < 32) {
             if (!line.isEmpty()) {
-              //							println("read line: " + line)
+              // println("read line: " + line)
               parseLine(line)
               line = ""
             }
@@ -57,7 +61,6 @@ class EngineCore(command: String, val id: String = "UCIengine") extends actors.D
   var position = Position.start
   var channel: Option[actors.OutputChannel[Any]] = None
 
-  var readySyncVar = new concurrent.SyncVar[Unit]
   readySyncVar.get
 
   start()
@@ -80,11 +83,12 @@ class EngineCore(command: String, val id: String = "UCIengine") extends actors.D
         case m => println("Unknown message: " + m.toString)
       }
     }
+    command("quit")
     process.destroy()
   }
 
   def command(cmd: String) {
-    //		println(cmd)
+    // println(cmd)
     os.write((cmd + "\n").getBytes())
     os.flush()
   }

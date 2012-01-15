@@ -16,8 +16,21 @@ object MatchRunner extends SimpleSwingApplication {
       else if (result == 1) winA += 1
       else draws += 1
     }
+    
+    def eloDifference: Option[Int] = {
+      if(draws == 0 && (winA == 0 || winB == 0)) None
+      else {
+        val total = winA + winB + draws
+        val score = winA + draws * 0.5
+        val percentage = score / total
+        val elo = -400 * math.log10(1 / percentage - 1)
+        Some(elo.round.toInt)
+      }
+    }
+    
+    def eloDifferenceString = eloDifference.map(d => " (%s%d)".format((if(d > 0) "+" else ""), d)).getOrElse("")
 
-    override def toString = "+%d -%d =%d".format(winA, winB, draws)
+    override def toString = "+%d -%d =%d%s".format(winA, winB, draws, eloDifferenceString)
   }
 
   val board = new SwingBoard
@@ -27,10 +40,10 @@ object MatchRunner extends SimpleSwingApplication {
   }
 
   actor {
-    val timeBase = 60
-    val timeInc = 1
+    val timeBase = 60*5
+    val timeInc = 2
     val time = Time(timeBase, timeInc, timeBase, timeInc)
-    val engineCmds = ("stockfish-2.1.1", "stockfish")
+    val engineCmds = ("stockfish", "toga2")
 
     val chess960 = false
     val rng = new scala.util.Random
